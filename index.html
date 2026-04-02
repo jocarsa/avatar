@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>A-Frame GLB Character</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/aframe-orbit-controls-component@1.3.2/dist/aframe-orbit-controls-component.min.js"></script>
+
+  <style>
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      background: #050505;
+      overflow: hidden;
+    }
+  </style>
+</head>
+<body>
+  <a-scene
+    background="color: #050505"
+    renderer="colorManagement: true; physicallyCorrectLights: true"
+    shadow="type: pcfsoft"
+  >
+    <a-assets>
+      <a-asset-item id="characterModel" src="avatar.glb"></a-asset-item>
+    </a-assets>
+
+    <a-light
+      type="ambient"
+      color="#666"
+      intensity="10.5">
+    </a-light>
+
+    <a-light
+      type="directional"
+      color="#ffffff"
+      intensity="0.4"
+      position="2 4 3"
+      castShadow="true"
+      shadowMapWidth="2048"
+      shadowMapHeight="2048"
+      shadowCameraTop="10"
+      shadowCameraBottom="-10"
+      shadowCameraLeft="-10"
+      shadowCameraRight="10">
+    </a-light>
+
+    <a-light
+      type="directional"
+      color="#88aaff"
+      intensity="0.6"
+      position="-3 2 -4">
+    </a-light>
+
+    <a-plane
+      position="0 0 0"
+      rotation="-90 0 0"
+      width="20"
+      height="20"
+      color="#111"
+      shadow="receive: true">
+    </a-plane>
+
+    <a-entity
+      id="character"
+      gltf-model="#characterModel"
+      position="0 0 0"
+      rotation="0 0 0"
+      scale="1 1 1"
+      shadow="cast: true; receive: true">
+    </a-entity>
+
+    <a-entity
+      camera="fov: 15; near: 0.01; far: 100"
+      position="0 -0.1 3.5"
+      orbit-controls="
+        target: 0 1.2 0;
+        minDistance: 1.5;
+        maxDistance: 6;
+        initialPosition: 0 1.4 3.5;
+        enableDamping: true;
+        dampingFactor: 0.08">
+    </a-entity>
+
+  </a-scene>
+
+  <script>
+    const characterEl = document.getElementById('character');
+
+    let cabezaBone = null;
+    let cabezaBaseRotation = null;
+    let cabezaTarget = { x: 0, y: 0, z: 0 };
+
+    function degToRad(v) {
+      return THREE.MathUtils.degToRad(v);
+    }
+
+    function clamp(v, min, max) {
+      return Math.max(min, Math.min(max, v));
+    }
+
+    function findBoneByName(root, name) {
+      let found = null;
+      root.traverse((node) => {
+        if (!found && node.isBone && node.name === name) {
+          found = node;
+        }
+      });
+      return found;
+    }
+
+    function listBoneNames(root) {
+      const names = [];
+      root.traverse((node) => {
+        if (node.isBone) names.push(node.name);
+      });
+      return names;
+    }
+
+    function applyCabezaRotation() {
+      if (!cabezaBone || !cabezaBaseRotation) return;
+
+      const x = clamp(cabezaTarget.x, -30, 30);
+      const y = clamp(cabezaTarget.y, -60, 60);
+      const z = clamp(cabezaTarget.z, -20, 20);
+
+      cabezaBone.rotation.x = cabezaBaseRotation.x + degToRad(x);
+      cabezaBone.rotation.y = cabezaBaseRotation.y + degToRad(y);
+      cabezaBone.rotation.z = cabezaBaseRotation.z + degToRad(z);
+    }
+
+    characterEl.addEventListener('model-loaded', (e) => {
+      const model = e.detail.model;
+
+      cabezaBone = findBoneByName(model, 'cabeza');
+
+      if (cabezaBone) {
+        cabezaBaseRotation = {
+          x: cabezaBone.rotation.x,
+          y: cabezaBone.rotation.y,
+          z: cabezaBone.rotation.z
+        };
+        console.log('Bone "cabeza" found:', cabezaBone);
+      } else {
+        console.warn('Bone "cabeza" not found. Bones:', listBoneNames(model));
+      }
+    });
+
+    AFRAME.registerComponent('cabeza-controller', {
+      tick: function () {
+        applyCabezaRotation();
+      }
+    });
+
+    document.querySelector('a-scene').setAttribute('cabeza-controller', '');
+
+    window.addEventListener('message', (event) => {
+      const data = event.data;
+      if (!data || typeof data !== 'object') return;
+
+      switch (data.type) {
+        case 'setCabezaRotation':
+          cabezaTarget.x = data.x ?? cabezaTarget.x;
+          cabezaTarget.y = data.y ?? cabezaTarget.y;
+          cabezaTarget.z = data.z ?? cabezaTarget.z;
+          break;
+
+        case 'resetCabezaRotation':
+          cabezaTarget.x = 0;
+          cabezaTarget.y = 0;
+          cabezaTarget.z = 0;
+          break;
+      }
+    });
+  </script>
+</body>
+</html>

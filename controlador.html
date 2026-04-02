@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>jocarsa | avatar</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    :root{
+      --fondo:#f5f7fb;
+      --panel:#ffffff;
+      --panel2:#eef2f7;
+      --borde:#d7dee8;
+      --texto:#1f2a37;
+      --subtexto:#5f6b7a;
+      --primario:#1d4ed8;
+      --primario-2:#173ea8;
+      --ok:#16a34a;
+      --sombra:0 10px 30px rgba(15,23,42,0.08);
+      --radio:14px;
+    }
+
+    *{
+      box-sizing:border-box;
+      font-family:Arial, Helvetica, sans-serif;
+    }
+
+    html,body{
+      margin:0;
+      width:100%;
+      height:100%;
+      background:var(--fondo);
+      color:var(--texto);
+      overflow:hidden;
+    }
+
+    body{
+      display:grid;
+      grid-template-columns:380px 1fr;
+      gap:0;
+    }
+
+    .sidebar{
+      background:var(--panel);
+      border-right:1px solid var(--borde);
+      overflow:auto;
+      display:flex;
+      flex-direction:column;
+      min-height:0;
+    }
+
+    .sidebar-header{
+      padding:20px;
+      border-bottom:1px solid var(--borde);
+      background:linear-gradient(180deg,#ffffff,#f8fafc);
+    }
+
+    .marca{
+      display:flex;
+      align-items:center;
+      gap:14px;
+    }
+
+    .logo{
+      width:48px;
+      height:48px;
+      border-radius:10px;
+      background:var(--primario);
+      color:white;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:bold;
+      font-size:20px;
+      box-shadow:var(--sombra);
+      flex:0 0 auto;
+    }
+
+    .marca-texto h1{
+      margin:0;
+      font-size:22px;
+      line-height:1.1;
+    }
+
+    .marca-texto p{
+      margin:5px 0 0 0;
+      color:var(--subtexto);
+      font-size:13px;
+    }
+
+    .contenido{
+      padding:18px;
+    }
+
+    .bloque{
+      background:var(--panel);
+      border:1px solid var(--borde);
+      border-radius:var(--radio);
+      box-shadow:var(--sombra);
+      margin-bottom:16px;
+      overflow:hidden;
+    }
+
+    .bloque-titulo{
+      padding:12px 14px;
+      background:var(--panel2);
+      border-bottom:1px solid var(--borde);
+      font-size:12px;
+      font-weight:bold;
+      color:var(--subtexto);
+      text-transform:uppercase;
+      letter-spacing:0.06em;
+    }
+
+    .bloque-cuerpo{
+      padding:14px;
+    }
+
+    .descripcion{
+      margin:0;
+      color:var(--subtexto);
+      line-height:1.5;
+      font-size:14px;
+    }
+
+    .etiqueta-codigo{
+      display:inline-block;
+      padding:2px 6px;
+      border-radius:6px;
+      background:#e8eefb;
+      border:1px solid #cfd9f3;
+      color:#204090;
+      font-family:monospace;
+      font-size:12px;
+    }
+
+    .fila{
+      display:grid;
+      grid-template-columns:52px 1fr 56px;
+      gap:10px;
+      align-items:center;
+      margin-bottom:12px;
+    }
+
+    .fila:last-child{
+      margin-bottom:0;
+    }
+
+    .eje{
+      font-size:13px;
+      font-weight:bold;
+      color:var(--subtexto);
+      text-align:center;
+      padding:8px 0;
+      background:#f8fafc;
+      border:1px solid var(--borde);
+      border-radius:8px;
+    }
+
+    input[type="range"]{
+      width:100%;
+    }
+
+    .valor{
+      text-align:right;
+      font-variant-numeric:tabular-nums;
+      font-size:14px;
+      font-weight:bold;
+      color:var(--texto);
+    }
+
+    .rejilla-botones{
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:10px;
+    }
+
+    button{
+      border:1px solid var(--borde);
+      border-radius:10px;
+      padding:11px 12px;
+      font-size:14px;
+      cursor:pointer;
+      transition:background 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+    }
+
+    button:hover{
+      transform:translateY(-1px);
+    }
+
+    button.primario{
+      background:var(--primario);
+      color:#fff;
+      border-color:var(--primario);
+    }
+
+    button.primario:hover{
+      background:var(--primario-2);
+      border-color:var(--primario-2);
+    }
+
+    button.secundario{
+      background:#fff;
+      color:var(--texto);
+    }
+
+    button.secundario:hover{
+      background:#f8fafc;
+      border-color:#c7d2e0;
+    }
+
+    .estado{
+      font-size:14px;
+      color:var(--subtexto);
+      line-height:1.5;
+      min-height:64px;
+    }
+
+    .viewer{
+      display:flex;
+      flex-direction:column;
+      min-width:0;
+      min-height:0;
+      background:#e9eef5;
+    }
+
+    .topbar{
+      height:64px;
+      background:#fff;
+      border-bottom:1px solid var(--borde);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:0 18px;
+      box-shadow:0 2px 8px rgba(15,23,42,0.04);
+    }
+
+    .topbar-izq{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      min-width:0;
+    }
+
+    .indicador{
+      width:12px;
+      height:12px;
+      border-radius:50%;
+      background:var(--ok);
+      flex:0 0 auto;
+    }
+
+    .topbar-titulo{
+      font-size:14px;
+      color:var(--texto);
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    .topbar-derecha{
+      font-size:12px;
+      color:var(--subtexto);
+      background:#f8fafc;
+      border:1px solid var(--borde);
+      padding:6px 10px;
+      border-radius:999px;
+    }
+
+    .visor-marco{
+      flex:1;
+      min-height:0;
+      padding:18px;
+    }
+
+    .visor-panel{
+      width:100%;
+      height:100%;
+      background:#fff;
+      border:1px solid var(--borde);
+      border-radius:16px;
+      box-shadow:var(--sombra);
+      overflow:hidden;
+    }
+
+    iframe{
+      width:100%;
+      height:100%;
+      border:0;
+      display:block;
+      background:#000;
+    }
+
+    @media (max-width: 980px){
+      body{
+        grid-template-columns:1fr;
+        grid-template-rows:auto 1fr;
+      }
+
+      .sidebar{
+        border-right:0;
+        border-bottom:1px solid var(--borde);
+        max-height:52vh;
+      }
+    }
+  </style>
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="marca">
+        <div class="logo">J</div>
+        <div class="marca-texto">
+          <h1>jocarsa | avatar</h1>
+          <p>Panel de control del visor de avatar</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="contenido">
+      <div class="bloque">
+        <div class="bloque-titulo">Descripción</div>
+        <div class="bloque-cuerpo">
+          <p class="descripcion">
+            Este panel carga <span class="etiqueta-codigo">index.html</span> en un iframe y envía
+            órdenes en tiempo real mediante <span class="etiqueta-codigo">postMessage()</span>
+            para controlar la rotación del hueso <span class="etiqueta-codigo">cabeza</span>.
+          </p>
+        </div>
+      </div>
+
+      <div class="bloque">
+        <div class="bloque-titulo">Rotación de cabeza</div>
+        <div class="bloque-cuerpo">
+          <div class="fila">
+            <div class="eje">Eje X</div>
+            <input id="rotX" type="range" min="-30" max="30" step="1" value="0">
+            <div class="valor" id="rotXValue">0</div>
+          </div>
+
+          <div class="fila">
+            <div class="eje">Eje Y</div>
+            <input id="rotY" type="range" min="-60" max="60" step="1" value="0">
+            <div class="valor" id="rotYValue">0</div>
+          </div>
+
+          <div class="fila">
+            <div class="eje">Eje Z</div>
+            <input id="rotZ" type="range" min="-20" max="20" step="1" value="0">
+            <div class="valor" id="rotZValue">0</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bloque">
+        <div class="bloque-titulo">Poses rápidas</div>
+        <div class="bloque-cuerpo">
+          <div class="rejilla-botones">
+            <button class="primario" type="button" onclick="setHead(0,0,0)">Centro</button>
+            <button class="primario" type="button" onclick="setHead(-15,0,0)">Arriba</button>
+            <button class="primario" type="button" onclick="setHead(15,0,0)">Abajo</button>
+            <button class="primario" type="button" onclick="setHead(0,25,0)">Izquierda</button>
+            <button class="primario" type="button" onclick="setHead(0,-25,0)">Derecha</button>
+            <button class="primario" type="button" onclick="setHead(0,0,15)">Inclinar</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="bloque">
+        <div class="bloque-titulo">Animaciones</div>
+        <div class="bloque-cuerpo">
+          <div class="rejilla-botones">
+            <button class="secundario" type="button" onclick="resetHead()">Reiniciar</button>
+            <button class="secundario" type="button" onclick="demoNod()">Asentir</button>
+            <button class="secundario" type="button" onclick="demoNo()">Negar</button>
+            <button class="secundario" type="button" onclick="demoTilt()">Balanceo</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="bloque">
+        <div class="bloque-titulo">Estado</div>
+        <div class="bloque-cuerpo">
+          <div class="estado" id="statusText">Esperando a que cargue el visor...</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="viewer">
+    <div class="topbar">
+      <div class="topbar-izq">
+        <div class="indicador"></div>
+        <div class="topbar-titulo">
+          Visor activo: <span class="etiqueta-codigo">index.html</span>
+        </div>
+      </div>
+      <div class="topbar-derecha">jocarsa | visor 3D</div>
+    </div>
+
+    <div class="visor-marco">
+      <div class="visor-panel">
+        <iframe id="viewerFrame" src="index.html" title="Visor del avatar"></iframe>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const frame = document.getElementById('viewerFrame');
+    const statusText = document.getElementById('statusText');
+
+    const rotX = document.getElementById('rotX');
+    const rotY = document.getElementById('rotY');
+    const rotZ = document.getElementById('rotZ');
+
+    const rotXValue = document.getElementById('rotXValue');
+    const rotYValue = document.getElementById('rotYValue');
+    const rotZValue = document.getElementById('rotZValue');
+
+    let demoTimer = null;
+
+    function send(message) {
+      if (!frame.contentWindow) return;
+      frame.contentWindow.postMessage(message, '*');
+    }
+
+    function updateLabels() {
+      rotXValue.textContent = rotX.value;
+      rotYValue.textContent = rotY.value;
+      rotZValue.textContent = rotZ.value;
+    }
+
+    function applyHead() {
+      updateLabels();
+      send({
+        type: 'setCabezaRotation',
+        x: Number(rotX.value),
+        y: Number(rotY.value),
+        z: Number(rotZ.value)
+      });
+      statusText.textContent =
+        `Rotación enviada. X: ${rotX.value}°, Y: ${rotY.value}°, Z: ${rotZ.value}°.`;
+    }
+
+    function setHead(x, y, z) {
+      stopDemo();
+      rotX.value = x;
+      rotY.value = y;
+      rotZ.value = z;
+      applyHead();
+    }
+
+    function resetHead() {
+      stopDemo();
+      rotX.value = 0;
+      rotY.value = 0;
+      rotZ.value = 0;
+      updateLabels();
+      send({ type: 'resetCabezaRotation' });
+      statusText.textContent = 'La cabeza ha vuelto a la posición neutral.';
+    }
+
+    function stopDemo() {
+      if (demoTimer) {
+        clearInterval(demoTimer);
+        demoTimer = null;
+      }
+    }
+
+    function demoNod() {
+      stopDemo();
+      statusText.textContent = 'Animación activa: asentir.';
+      let t = 0;
+      demoTimer = setInterval(() => {
+        t += 0.12;
+        rotX.value = Math.round(Math.sin(t) * 18);
+        rotY.value = 0;
+        rotZ.value = 0;
+        applyHead();
+      }, 30);
+    }
+
+    function demoNo() {
+      stopDemo();
+      statusText.textContent = 'Animación activa: negar.';
+      let t = 0;
+      demoTimer = setInterval(() => {
+        t += 0.12;
+        rotX.value = 0;
+        rotY.value = Math.round(Math.sin(t) * 35);
+        rotZ.value = 0;
+        applyHead();
+      }, 30);
+    }
+
+    function demoTilt() {
+      stopDemo();
+      statusText.textContent = 'Animación activa: balanceo lateral.';
+      let t = 0;
+      demoTimer = setInterval(() => {
+        t += 0.12;
+        rotX.value = 0;
+        rotY.value = 0;
+        rotZ.value = Math.round(Math.sin(t) * 15);
+        applyHead();
+      }, 30);
+    }
+
+    rotX.addEventListener('input', () => {
+      stopDemo();
+      applyHead();
+    });
+
+    rotY.addEventListener('input', () => {
+      stopDemo();
+      applyHead();
+    });
+
+    rotZ.addEventListener('input', () => {
+      stopDemo();
+      applyHead();
+    });
+
+    window.addEventListener('message', (event) => {
+      if (event.source !== frame.contentWindow) return;
+      const data = event.data || {};
+      statusText.textContent = 'Respuesta del visor: ' + JSON.stringify(data);
+    });
+
+    frame.addEventListener('load', () => {
+      statusText.textContent = 'El visor se ha cargado correctamente.';
+      updateLabels();
+      setTimeout(() => {
+        applyHead();
+      }, 500);
+    });
+
+    updateLabels();
+  </script>
+</body>
+</html>
