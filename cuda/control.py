@@ -26,8 +26,10 @@ UDP_IP = "127.0.0.1"
 UDP_PORT = 5005
 SHAPES_DIR = Path("shapes")
 
-OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
-OLLAMA_MODEL = "phi4-mini:latest"
+REMOTE_API_URL = "https://covalently-untasked-daphne.ngrok-free.dev/api/"
+REMOTE_API_USER = "jocarsa"
+REMOTE_API_PASSWORD = "jocarsa"
+REMOTE_API_MODEL = "phi3:latest"
 
 SYSTEM_PROMPT_DEFAULT = """Eres un asistente conversacional para un avatar 3D.
 Hablas siempre en español.
@@ -96,7 +98,7 @@ info = tb.Label(
     text=(
         f"Shapes detected: {len(shape_names)}\n"
         f"Folder: {SHAPES_DIR.resolve()}\n"
-        f"Ollama model: {OLLAMA_MODEL}"
+        f"Remote model: {REMOTE_API_MODEL}"
     ),
     font=("Segoe UI", 10),
     bootstyle="secondary"
@@ -140,7 +142,6 @@ assistant_state = {
 
 state_lock = threading.Lock()
 
-# per-slider animation metadata
 slider_meta = []
 
 
@@ -355,6 +356,13 @@ system_prompt_text = tb.Text(settings_frame, height=7, wrap="word", font=("Segoe
 system_prompt_text.pack(fill=X, pady=(0, 10))
 system_prompt_text.insert("1.0", SYSTEM_PROMPT_DEFAULT)
 
+api_row = tb.Frame(settings_frame)
+api_row.pack(fill=X, pady=(0, 10))
+
+tb.Label(api_row, text="Remote model", bootstyle="light").pack(side=LEFT, padx=(0, 8))
+remote_model_var = tb.StringVar(value=REMOTE_API_MODEL)
+tb.Entry(api_row, textvariable=remote_model_var, width=20).pack(side=LEFT, padx=(0, 16))
+
 tts_row = tb.Frame(settings_frame)
 tts_row.pack(fill=X)
 
@@ -456,10 +464,7 @@ else:
         anim_row.pack(fill=X, pady=(8, 0))
 
         def on_anim_toggle(meta_ref=meta):
-            if meta_ref["anim_enabled_var"].get():
-                meta_ref["base_value"] = float(slider_vars[meta_ref["index"]].get())
-            else:
-                meta_ref["base_value"] = float(slider_vars[meta_ref["index"]].get())
+            meta_ref["base_value"] = float(slider_vars[meta_ref["index"]].get())
 
         tb.Checkbutton(
             anim_row,
@@ -497,7 +502,7 @@ recognized_label = tb.Label(
 )
 recognized_label.pack(fill=X, pady=(0, 10), anchor="w")
 
-answer_title = tb.Label(io_frame, text="Ollama answer", bootstyle="light")
+answer_title = tb.Label(io_frame, text="Remote AI answer", bootstyle="light")
 answer_title.pack(anchor="w")
 
 answer_text = tb.Text(io_frame, height=10, wrap="word", font=("Segoe UI", 10))
@@ -509,22 +514,48 @@ status_label.pack(anchor="w", pady=(0, 6))
 
 
 # ------------------------------------------------------------
-# OLLAMA
+# REMOTE AI
 # ------------------------------------------------------------
 def ask_ollama(question):
     system_prompt = system_prompt_text.get("1.0", END).strip()
+    model_name = remote_model_var.get().strip() or REMOTE_API_MODEL
+
+    full_question = f"{system_prompt}\n\nUsuario: {question}\nAsistente:"
 
     payload = {
-        "model": OLLAMA_MODEL,
-        "prompt": question,
-        "system": system_prompt,
-        "stream": False
+        "user": REMOTE_API_USER,
+        "password": REMOTE_API_PASSWORD,
+        "question": full_question,
+        "model": model_name
     }
 
-    r = requests.post(OLLAMA_URL, json=payload, timeout=300)
+    r = requests.post(
+        REMOTE_API_URL,
+        json=payload,
+        headers={"Content-Type": "application/json"},
+        timeout=300
+    )
     r.raise_for_status()
+
     data = r.json()
-    return data.get("response", "").strip()
+
+    answer = (
+        data.get("response")
+        or data.get("answer")
+        or data.get("text")
+        or data.get("message")
+        or ""
+    )
+
+    if isinstance(answer, dict):
+        answer = str(answer)
+
+    answer = str(answer).strip()
+
+    if not answer:
+        raise RuntimeError(f"Respuesta remota no reconocida: {data}")
+
+    return answer
 
 
 # ------------------------------------------------------------
@@ -672,7 +703,7 @@ def process_user_text(user_text):
                 assistant_state["speaking"] = False
                 assistant_state["processing"] = False
                 assistant_state["listening_enabled"] = True
-            status_var.set(f"Ollama error: {e}")
+            status_var.set(f"Remote AI error: {e}")
 
     threading.Thread(target=worker, daemon=True).start()
 
