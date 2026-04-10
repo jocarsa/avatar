@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Fake GI - Stable</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #111;
+    }
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+
+<script type="module">
+import * as THREE from 'https://esm.sh/three@0.161.0';
+import { GLTFLoader } from 'https://esm.sh/three@0.161.0/examples/jsm/loaders/GLTFLoader.js';
+
+// --------------------------------------------------
+// PARAMETERS
+// --------------------------------------------------
+const CAMERA_FOV = 10;
+const CAMERA_POS = new THREE.Vector3(0, 0, 3);
+const LOOK_AT    = new THREE.Vector3(0, 0, 0);
+
+const GI_SUBDIVISIONS = 4;         // controls how many fill lights
+const GI_RADIUS       = 3.0;
+const GI_INTENSITY    = 0.35;      // per fill light
+const GI_ANGLE        = Math.PI / 3.5;
+const GI_PENUMBRA     = 0.9;
+const GI_DECAY        = 2.0;
+
+// Shadow settings: ONLY ONE spotlight will cast shadows
+const SHADOW_INTENSITY    = 3.5;
+const SHADOW_MAP_SIZE     = 2048;
+const SHADOW_BIAS         = -0.00005;
+const SHADOW_NORMAL_BIAS  = 0.02;
+const SHADOW_NEAR         = 0.1;
+const SHADOW_FAR          = 10.0;
+const SHADOW_ANGLE        = Math.PI / 4.0;
+const SHADOW_PENUMBRA     = 0.7;
+
+const GROUND_Y = -1.0;
+const GROUND_R = 3.0;
+
+// --------------------------------------------------
+// SCENE
+// --------------------------------------------------
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x111111);
+
+// --------------------------------------------------
+// CAMERA
+// --------------------------------------------------
+const camera = new THREE.PerspectiveCamera(
+  CAMERA_FOV,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  100
+);
+camera.position.copy(CAMERA_POS);
+camera.lookAt(LOOK_AT);
+
+// --------------------------------------------------
+// RENDERER
+// --------------------------------------------------
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+if ('useLegacyLights' in renderer) {
+  renderer.useLegacyLights = false;
+}
+
+document.body.appendChild(renderer.domElement);
+
+// --------------------------------------------------
+// TARGET AT ORIGIN
+// --------------------------------------------------
+const target = new THREE.Object3D();
+target.position.set(0, 0, 0);
+scene.add(target);
+
+// --------------------------------------------------
+// GROUND SHADOW CATCHER
+// --------------------------------------------------
+const ground = new THREE.Mesh(
+  new THREE.CircleGeometry(GROUND_R, 64),
+  new THREE.ShadowMaterial({ opacity: 0.28 })
+);
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = GROUND_Y;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// --------------------------------------------------
+// SMALL BASE AMBIENT
+// --------------------------------------------------
+const hemi = new THREE.HemisphereLight(0xffffff, 0x222233, 0.12);
+scene.add(hemi);
+
+// --------------------------------------------------
+// LIGHT COUNT FROM SUBDIVISIONS
+// --------------------------------------------------
+function getLightCountFromSubdivisions(subdivisions) {
+  return Math.max(6, subdivisions * subdivisions * 6);
+}
+
+// --------------------------------------------------
+// MAIN SHADOW LIGHT
+// --------------------------------------------------
+const mainShadowLight = new THREE.SpotLight(
+  0xffffff,
+  SHADOW_INTENSITY,
+  0,
+  SHADOW_ANGLE,
+  SHADOW_PENUMBRA,
+  2.0
+);
+
+mainShadowLight.position.set(1.8, 2.6, 1.8);
+mainShadowLight.target = target;
+mainShadowLight.castShadow = true;
+
+mainShadowLight.shadow.mapSize.width = SHADOW_MAP_SIZE;
+mainShadowLight.shadow.mapSize.height = SHADOW_MAP_SIZE;
+mainShadowLight.shadow.camera.near = SHADOW_NEAR;
+mainShadowLight.shadow.camera.far = SHADOW_FAR;
+mainShadowLight.shadow.bias = SHADOW_BIAS;
+mainShadowLight.shadow.normalBias = SHADOW_NORMAL_BIAS;
+mainShadowLight.shadow.focus = 1.0;
+
+scene.add(mainShadowLight);
+scene.add(mainShadowLight.target);
+
+// --------------------------------------------------
+// FILL GI LIGHTS (NO SHADOWS)
+// --------------------------------------------------
+const giLights = [];
+
+function createFillLight(position, intensity) {
+  const light = new THREE.SpotLight(
+    0xffffff,
+    intensity,
+    0,
+    GI_ANGLE,
+    GI_PENUMBRA,
+    GI_DECAY
+  );
+  light.position.copy(position);
+  light.target = target;
+  light.castShadow = false; // key stability fix
+  scene.add(light);
+  scene.add(light.target);
+  giLights.push(light);
+}
+
+function createGILights(subdivisions, radius) {
+  const count = getLightCountFromSubdivisions(subdivisions);
+  const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+
+  for (let i = 0; i < count; i++) {
+    const t = i / Math.max(1, count - 1);
+    const y = 1 - t * 2;
+
+    // keep mostly upper hemisphere, but allow a bit below horizon
+    if (y < -0.10) continue;
+
+    const r = Math.sqrt(Math.max(0, 1 - y * y));
+    const theta = goldenAngle * i;
+
+    const x = Math.cos(theta) * r;
+    const z = Math.sin(theta) * r;
+
+    const pos = new THREE.Vector3(x * radius, y * radius, z * radius);
+
+    // skip very near the main shadow light direction, avoid redundancy
+    if (pos.distanceTo(mainShadowLight.position) < 0.7) continue;
+
+    const verticalFactor = THREE.MathUtils.mapLinear(y, -0.10, 1.0, 0.65, 1.1);
+    createFillLight(pos, GI_INTENSITY * verticalFactor);
+  }
+}
+
+createGILights(GI_SUBDIVISIONS, GI_RADIUS);
+
+// --------------------------------------------------
+// LOAD MODEL
+// --------------------------------------------------
+const loader = new GLTFLoader();
+
+loader.load(
+  'avatar.glb',
+  (gltf) => {
+    const model = gltf.scene;
+    scene.add(model);
+
+    // first pass: shadow flags and materials
+    model.traverse((obj) => {
+      if (!obj.isMesh) return;
+
+      obj.castShadow = true;
+      obj.receiveShadow = true;
+
+      if (obj.geometry) {
+        obj.geometry.computeVertexNormals();
+      }
+
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      for (const mat of mats) {
+        if (!mat) continue;
+
+        // for thin/concave meshes, this often helps avoid weird shadow misses
+        if ('shadowSide' in mat) {
+          mat.shadowSide = THREE.FrontSide;
+        }
+
+        mat.needsUpdate = true;
+      }
+    });
+
+    // center model
+    const box = new THREE.Box3().setFromObject(model);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+
+    model.position.sub(center);
+
+    // scale model
+    const maxDim = Math.max(size.x, size.y, size.z);
+    if (maxDim > 0) {
+      const scale = 2.0 / maxDim;
+      model.scale.setScalar(scale);
+    }
+
+    // place feet on y=0
+    const box2 = new THREE.Box3().setFromObject(model);
+    model.position.y = 0;
+  },
+  undefined,
+  (err) => {
+    console.error('Error loading avatar.glb:', err);
+  }
+);
+
+// --------------------------------------------------
+// RESIZE
+// --------------------------------------------------
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// --------------------------------------------------
+// RENDER
+// --------------------------------------------------
+function animate() {
+  requestAnimationFrame(animate);
+  renderer.render(scene, camera);
+}
+animate();
+
+</script>
+</body>
+</html>
