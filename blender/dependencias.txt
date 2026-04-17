@@ -1,0 +1,4 @@
+sudo apt update
+sudo apt install ffmpeg portaudio19-dev libsdl2-dev
+
+pip install requests ttkbootstrap gTTS pydub pygame SpeechRecognition pyaudio
